@@ -4,6 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mosahh - مصح الإجابات</title>
+<meta name="theme-color" content="#000">
+<link rel="manifest" href="data:application/manifest+json,{
+  'name':'Mosahh',
+  'short_name':'Mosahh',
+  'start_url':'.',
+  'display':'standalone',
+  'background_color':'#ffffff',
+  'theme_color':'#000000',
+  'icons':[{'src':'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==','sizes':'192x192','type':'image/png'}]
+}">
 <style>
 body{font-family:sans-serif;padding:20px;max-width:600px;margin:auto}
 input,textarea,select,button{width:100%;padding:10px;margin:5px 0;border-radius:6px;border:1px solid #ccc;box-sizing:border-box}
@@ -20,15 +30,19 @@ button{background:#000;color:#fff;border:none;cursor:pointer;font-size:16px}
   <option value="en">English</option>
 </select>
 
+<select id="template" onchange="loadTemplate()">
+  <option value="">اختر قالب</option>
+  <option value="mcq4">اختياري من 4 - 20 سؤال</option>
+  <option value="tf">صح وغلط - 10 أسئلة</option>
+  <option value="mcq5">اختياري من 5 - 15 سؤال</option>
+</select>
+
 <div id="app">
   <h2 id="title">مصحح الإجابات</h2>
-
   <label id="keyLabel">مفتاح الإجابة:</label>
   <input id="answerKey" placeholder="A,E,C,A,D">
-
   <label id="ansLabel">إجابات الطلاب:</label>
   <textarea id="studentAnswers" placeholder="كريم:A,C,A,D,C&#10;ايمن:A,E,A,D" rows="5"></textarea>
-
   <button id="btn" onclick="correct()">صحح</button>
   <div id="result"></div>
 </div>
@@ -45,6 +59,21 @@ button{background:#000;color:#fff;border:none;cursor:pointer;font-size:16px}
 </div>
 
 <script>
+// Service Worker للتخزين الأوفلاين
+if('serviceWorker' in navigator){
+  const sw = `
+    const CACHE = 'mosahh-v1';
+    self.addEventListener('install',e=>{
+      e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./'])));
+    });
+    self.addEventListener('fetch',e=>{
+      e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));
+    });
+  `;
+  const blob = new Blob([sw],{type:'text/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob));
+}
+
 const langData = {
   ar: {title:"مصحح الإجابات", keyLabel:"مفتاح الإجابة:", ansLabel:"إجابات الطلاب:", btn:"صحح", payTitle:"خلصت المحاولات المجانية", payText:"اشترك عشان تكمل تصحيح بدون حد"},
   en: {title:"Answer Grader", keyLabel:"Answer Key:", ansLabel:"Student Answers:", btn:"Grade", payTitle:"Free trials used up", payText:"Subscribe to continue grading"}
@@ -67,6 +96,19 @@ function setLang(lang){
   document.getElementById('payText').textContent = d.payText;
 }
 
+function loadTemplate(){
+  const t = document.getElementById('template').value;
+  if(t==='mcq4'){
+    document.getElementById('answerKey').value = 'A,B,C,D,A,B,C,D,A,B,C,D,A,B,C,D,A,B,C,D';
+  }
+  if(t==='tf'){
+    document.getElementById('answerKey').value = 'T,F,T,F,T,F,T,F,T,F';
+  }
+  if(t==='mcq5'){
+    document.getElementById('answerKey').value = 'A,B,C,D,E,A,B,C,D,E,A,B,C,D,E';
+  }
+}
+
 function checkAccess(){
   if(isSubscribed) return true;
   if(freeUses >= MAX_FREE){
@@ -79,34 +121,25 @@ function checkAccess(){
 
 function correct(){
   if(!checkAccess()) return;
-
   const key = document.getElementById('answerKey').value.split(',').map(s=>s.trim()).filter(s=>s);
   const students = document.getElementById('studentAnswers').value.split('\n').filter(s=>s.trim());
-
   if(key.length === 0){
-    alert(langData[localStorage.getItem('lang')||'ar'].title === 'مصحح الإجابات'? 'اكتب مفتاح الإجابة الأول' : 'Enter answer key first');
+    alert('اكتب مفتاح الإجابة الأول');
     return;
   }
-
-  let html = '<h3>' + (langData[localStorage.getItem('lang')||'ar'].title === 'مصحح الإجابات'? 'النتيجة:' : 'Results:') + '</h3>';
-
+  let html = '<h3>النتيجة:</h3>';
   students.forEach(line=>{
     const parts = line.split(':');
     if(parts.length < 2) return;
-
     const name = parts[0].trim();
     const answers = parts[1].split(',').map(s=>s.trim());
     let score = 0;
-
     for(let i = 0; i < key.length; i++){
       if(answers[i] && answers[i] === key[i]) score++;
     }
-
     html += `<p><b>${name}:</b> ${score}/${key.length}</p>`;
   });
-
   document.getElementById('result').innerHTML = html;
-
   if(!isSubscribed){
     freeUses++;
     localStorage.setItem('freeUses', freeUses);
