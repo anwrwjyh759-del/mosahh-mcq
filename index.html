@@ -9,6 +9,8 @@ body{font-family:sans-serif;padding:20px;max-width:600px;margin:auto}
 input,textarea,select,button{width:100%;padding:10px;margin:5px 0;border-radius:6px;border:1px solid #ccc;box-sizing:border-box}
 button{background:#000;color:#fff;border:none;cursor:pointer;font-size:16px}
 #result{background:#f5f5f5;padding:15px;border-radius:6px;margin-top:15px}
+#paywall{display:none;text-align:center;padding:30px;border:2px dashed #ccc;border-radius:10px;margin-top:20px}
+#paywall.number{background:#f5f5f5;padding:10px;border-radius:6px;font-weight:bold;font-size:18px}
 </style>
 </head>
 <body>
@@ -22,20 +24,35 @@ button{background:#000;color:#fff;border:none;cursor:pointer;font-size:16px}
   <h2 id="title">مصحح الإجابات</h2>
 
   <label id="keyLabel">مفتاح الإجابة:</label>
-  <input id="answerKey" placeholder="A,B,C,D,A,B">
+  <input id="answerKey" placeholder="A,E,C,A,D">
 
   <label id="ansLabel">إجابات الطلاب:</label>
-  <textarea id="studentAnswers" placeholder="أحمد:A,B,C,D,A,B&#10;محمد:A,A,C,D,B" rows="5"></textarea>
+  <textarea id="studentAnswers" placeholder="كريم:A,C,A,D,C&#10;ايمن:A,E,A,D" rows="5"></textarea>
 
   <button id="btn" onclick="correct()">صحح</button>
   <div id="result"></div>
 </div>
 
+<div id="paywall">
+  <h3 id="payTitle">خلصت المحاولات المجانية</h3>
+  <p id="payText">اشترك عشان تكمل تصحيح بدون حد</p>
+  <p>الاشتراك: 100 جنيه / شهر</p>
+  <p>ابعت على أورانج كاش:</p>
+  <div class="number">01289590022</div>
+  <p>بعد التحويل ابعت سكرين التحويل على واتساب وهيتم تفعيلك</p>
+  <button onclick="window.open('https://wa.me/201289590022')">أبعت على واتساب</button>
+  <button onclick="checkActivation()">أنا دفعت، فعّلني</button>
+</div>
+
 <script>
 const langData = {
-  ar: {title:"مصحح الإجابات", keyLabel:"مفتاح الإجابة:", ansLabel:"إجابات الطلاب:", btn:"صحح", placeholderKey:"A,B,C,D,A,B", placeholderAns:"أحمد:A,B,C,D,A,B\nمحمد:A,A,C,D,B"},
-  en: {title:"Answer Grader", keyLabel:"Answer Key:", ansLabel:"Student Answers:", btn:"Grade", placeholderKey:"A,B,C,D,A,B", placeholderAns:"Ahmed:A,B,C,D,A,B\nMohamed:A,A,C,D,B"}
+  ar: {title:"مصحح الإجابات", keyLabel:"مفتاح الإجابة:", ansLabel:"إجابات الطلاب:", btn:"صحح", payTitle:"خلصت المحاولات المجانية", payText:"اشترك عشان تكمل تصحيح بدون حد"},
+  en: {title:"Answer Grader", keyLabel:"Answer Key:", ansLabel:"Student Answers:", btn:"Grade", payTitle:"Free trials used up", payText:"Subscribe to continue grading"}
 }
+
+let freeUses = parseInt(localStorage.getItem('freeUses')||'0');
+const MAX_FREE = 5;
+const isSubscribed = localStorage.getItem('subscribed')==='true';
 
 function setLang(lang){
   localStorage.setItem('lang', lang);
@@ -46,11 +63,23 @@ function setLang(lang){
   document.getElementById('keyLabel').textContent = d.keyLabel;
   document.getElementById('ansLabel').textContent = d.ansLabel;
   document.getElementById('btn').textContent = d.btn;
-  document.getElementById('answerKey').placeholder = d.placeholderKey;
-  document.getElementById('studentAnswers').placeholder = d.placeholderAns;
+  document.getElementById('payTitle').textContent = d.payTitle;
+  document.getElementById('payText').textContent = d.payText;
+}
+
+function checkAccess(){
+  if(isSubscribed) return true;
+  if(freeUses >= MAX_FREE){
+    document.getElementById('app').style.display='none';
+    document.getElementById('paywall').style.display='block';
+    return false;
+  }
+  return true;
 }
 
 function correct(){
+  if(!checkAccess()) return;
+
   const key = document.getElementById('answerKey').value.split(',').map(s=>s.trim()).filter(s=>s);
   const students = document.getElementById('studentAnswers').value.split('\n').filter(s=>s.trim());
 
@@ -63,16 +92,36 @@ function correct(){
 
   students.forEach(line=>{
     const parts = line.split(':');
-    const name = parts[0] || 'Student';
-    const answers = parts[1]? parts[1].split(',').map(s=>s.trim()) : [];
+    if(parts.length < 2) return;
+
+    const name = parts[0].trim();
+    const answers = parts[1].split(',').map(s=>s.trim());
     let score = 0;
 
-    answers.forEach((a,i)=>{if(a === key[i]) score++});
+    for(let i = 0; i < key.length; i++){
+      if(answers[i] && answers[i] === key[i]) score++;
+    }
 
     html += `<p><b>${name}:</b> ${score}/${key.length}</p>`;
   });
 
   document.getElementById('result').innerHTML = html;
+
+  if(!isSubscribed){
+    freeUses++;
+    localStorage.setItem('freeUses', freeUses);
+  }
+}
+
+function checkActivation(){
+  const code = prompt('اكتب كود التفعيل اللي بعتهولك على واتساب:');
+  if(code === 'MOSAHH2026'){
+    localStorage.setItem('subscribed','true');
+    alert('تم التفعيل بنجاح!');
+    location.reload();
+  }else{
+    alert('الكود غلط');
+  }
 }
 
 window.onload = ()=> setLang(localStorage.getItem('lang')||'ar');
