@@ -2,39 +2,95 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<title>مصحح الاختياري - دفعات</title>
+<title>مصحح الاختياري - نسخة مفعلة</title>
 <style>
 body{font-family:Tahoma;background:#f5f5f5;padding:15px}
 .container{max-width:800px;margin:auto;background:#fff;padding:20px;border-radius:10px}
 textarea,input,button{width:100%;padding:8px;margin:5px 0;border:1px solid #ddd;border-radius:6px;box-sizing:border-box}
 button{background:#27ae60;color:#fff;border:none;cursor:pointer}
+.locked{text-align:center;padding:40px;background:#fff3cd;border:2px solid #ffeaa7;border-radius:10px}
+.locked h2{color:#d63031}
+input#codeInput{width:60%;display:inline-block}
 table{width:100%;border-collapse:collapse;margin-top:15px}
 th,td{border:1px solid #ddd;padding:8px;text-align:center}
 th{background:#27ae60;color:#fff}
+.hidden{display:none}
 </style>
 </head>
 <body>
 <div class="container">
+
+<!-- شاشة التفعيل -->
+<div id="lockScreen" class="locked">
+<h2>البرنامج غير مفعل</h2>
+<p>اشترك بـ 100ج شهرياً على أورانج كاش رقم:</p>
+<h3>0128890022</h3>
+<p>بعد الدفع ابعتلي على واتساب وهبعتلك كود التفعيل</p>
+<input type="text" id="codeInput" placeholder="اكتب كود التفعيل هنا">
+<button onclick="activate()" style="width:35%">تفعيل</button>
+<p id="msg" style="color:red"></p>
+</div>
+
+<!-- البرنامج بعد التفعيل -->
+<div id="appScreen" class="hidden">
 <h2>مصحح الاختياري للدفعات</h2>
+<p style="color:green">مفعل حتى: <span id="expiry"></span></p>
 
 <h4>نموذج الإجابة الصحيح</h4>
 <textarea id="key" rows="2" placeholder="A,B,C,D,A,B,C,D"></textarea>
 
 <h4>إجابات الطلبة</h4>
-<textarea id="students" rows="6" placeholder="كل سطر طالب واحد:
-احمد محمد,A,B,C,D,A,B,C,D
-محمد علي,A,C,B,D,A,C,D
-ساره احمد,B,B,C,D,A,B,C,D"></textarea>
+<textarea id="students" rows="6" placeholder="احمد محمد,A,B,C,D,A,B,C,D"></textarea>
 
 <h4>درجة السؤال</h4>
 <input id="mark" type="number" value="1" step="0.5">
 
 <button onclick="correctAll()">صحح الكل</button>
-
 <div id="result"></div>
 </div>
 
+</div>
+
 <script>
+// غيّر الكود ده كل شهر
+const VALID_CODE = "AHM10010";
+
+// تشفير بسيط للتاريخ
+function getExpiryDate(code){
+  if(code!== VALID_CODE) return null;
+  let d = new Date();
+  d.setMonth(d.getMonth() + 1);
+  return d.toISOString().split('T')[0];
+}
+
+function checkLicense(){
+  let saved = localStorage.getItem('license');
+  if(!saved) return false;
+
+  let data = JSON.parse(saved);
+  let today = new Date().toISOString().split('T')[0];
+
+  if(data.expiry >= today && data.code === VALID_CODE){
+    document.getElementById('lockScreen').classList.add('hidden');
+    document.getElementById('appScreen').classList.remove('hidden');
+    document.getElementById('expiry').innerText = data.expiry;
+    return true;
+  }
+  return false;
+}
+
+function activate(){
+  let code = document.getElementById('codeInput').value.trim().toUpperCase();
+  let expiry = getExpiryDate(code);
+
+  if(expiry){
+    localStorage.setItem('license', JSON.stringify({code:code, expiry:expiry}));
+    checkLicense();
+  }else{
+    document.getElementById('msg').innerText = "الكود غلط أو منتهي";
+  }
+}
+
 function correctAll(){
   const key = document.getElementById('key').value.split(',').map(s=>s.trim().toUpperCase());
   const lines = document.getElementById('students').value.split('\n');
@@ -56,18 +112,15 @@ function correctAll(){
 
     const score = correct * mark;
     const percent = ((score/totalMarks)*100).toFixed(1);
-    html += `<tr>
-      <td>${name}</td>
-      <td>${score}/${totalMarks}</td>
-      <td>${percent}%</td>
-      <td>${correct}</td>
-      <td>${key.length-correct}</td>
-    </tr>`;
+    html += `<tr><td>${name}</td><td>${score}/${totalMarks}</td><td>${percent}%</td><td>${correct}</td><td>${key.length-correct}</td></tr>`;
   });
 
   html += '</table>';
   document.getElementById('result').innerHTML = html;
 }
+
+// شغّل التشيك أول ما الصفحة تفتح
+checkLicense();
 </script>
 </body>
 </html>
