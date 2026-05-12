@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>مصحح الاختياري - دفعات</title>
+<style>
+body{font-family:Tahoma;background:#f5f5f5;padding:15px}
+.container{max-width:800px;margin:auto;background:#fff;padding:20px;border-radius:10px}
+textarea,input,button{width:100%;padding:8px;margin:5px 0;border:1px solid #ddd;border-radius:6px;box-sizing:border-box}
+button{background:#27ae60;color:#fff;border:none;cursor:pointer}
+table{width:100%;border-collapse:collapse;margin-top:15px}
+th,td{border:1px solid #ddd;padding:8px;text-align:center}
+th{background:#27ae60;color:#fff}
+</style>
+</head>
+<body>
+<div class="container">
+<h2>مصحح الاختياري للدفعات</h2>
+
+<h4>نموذج الإجابة الصحيح</h4>
+<textarea id="key" rows="2" placeholder="A,B,C,D,A,B,C,D"></textarea>
+
+<h4>إجابات الطلبة</h4>
+<textarea id="students" rows="6" placeholder="كل سطر طالب واحد:
+احمد محمد,A,B,C,D,A,B,C,D
+محمد علي,A,C,B,D,A,C,D
+ساره احمد,B,B,C,D,A,B,C,D"></textarea>
+
+<h4>درجة السؤال</h4>
+<input id="mark" type="number" value="1" step="0.5">
+
+<button onclick="correctAll()">صحح الكل</button>
+
+<div id="result"></div>
+</div>
+
+<script>
+function correctAll(){
+  const key = document.getElementById('key').value.split(',').map(s=>s.trim().toUpperCase());
+  const lines = document.getElementById('students').value.split('\n');
+  const mark = parseFloat(document.getElementById('mark').value);
+  const totalMarks = key.length * mark;
+
+  let html = '<table><tr><th>الاسم</th><th>الدرجة</th><th>النسبة</th><th>صح</th><th>غلط</th></tr>';
+
+  lines.forEach(line=>{
+    if(!line.trim()) return;
+    const parts = line.split(',');
+    const name = parts[0];
+    const answers = parts.slice(1).map(s=>s.trim().toUpperCase());
+
+    let correct=0;
+    for(let i=0;i<key.length;i++){
+      if(answers[i]===key[i]) correct++;
+    }
+
+    const score = correct * mark;
+    const percent = ((score/totalMarks)*100).toFixed(1);
+    html += `<tr>
+      <td>${name}</td>
+      <td>${score}/${totalMarks}</td>
+      <td>${percent}%</td>
+      <td>${correct}</td>
+      <td>${key.length-correct}</td>
+    </tr>`;
+  });
+
+  html += '</table>';
+  document.getElementById('result').innerHTML = html;
+}
+</script>
+</body>
+</html>
