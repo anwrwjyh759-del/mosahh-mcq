@@ -3,16 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mosahh - مصحح الإجابات</title>
-<meta name="theme-color" content="#000">
+<title>Mosahh - مصح الإجابات</title>
 <style>
 body{font-family:sans-serif;padding:20px;max-width:600px;margin:auto}
 input,textarea,select,button{width:100%;padding:10px;margin:5px 0;border-radius:6px;border:1px solid #ccc;box-sizing:border-box}
 button{background:#000;color:#fff;border:none;cursor:pointer;font-size:16px}
-button:disabled{background:#888;cursor:not-allowed}
-#paywall{display:none;text-align:center;padding:30px;border:2px dashed #ccc;border-radius:10px;margin-top:20px}
-#paywall h3{margin:0 0 10px}
-#paywall .number{background:#f5f5f5;padding:10px;border-radius:6px;font-weight:bold;font-size:18px}
+#result{background:#f5f5f5;padding:15px;border-radius:6px;margin-top:15px}
 </style>
 </head>
 <body>
@@ -24,130 +20,62 @@ button:disabled{background:#888;cursor:not-allowed}
 
 <div id="app">
   <h2 id="title">مصحح الإجابات</h2>
-  
-  <label id="templateLabel">قوالب جاهزة:</label>
-  <select onchange="loadTemplate(this.value)">
-    <option value="">اختر قالب</option>
-    <option value="A,B,C,D,A,B,C,D,A,B">10 أسئلة</option>
-    <option value="A,B,C,D,A,B,C,D,A,B,A,B,C,D,A,B,C,D,A,B">20 سؤال</option>
-    <option value="T,F,T,F,T,F,T,F,T,F">صح وغلط 10</option>
-  </select>
 
   <label id="keyLabel">مفتاح الإجابة:</label>
-  <input id="answerKey" placeholder="A,B,C,D...">
+  <input id="answerKey" placeholder="A,B,C,D,A,B">
 
   <label id="ansLabel">إجابات الطلاب:</label>
-  <textarea id="studentAnswers" placeholder="طالب1:A,B,C&#10;طالب2:A,A,C" rows="5"></textarea>
+  <textarea id="studentAnswers" placeholder="أحمد:A,B,C,D,A,B&#10;محمد:A,A,C,D,B" rows="5"></textarea>
 
   <button id="btn" onclick="correct()">صحح</button>
   <div id="result"></div>
 </div>
 
-<div id="paywall">
-  <h3 id="payTitle">خلصت المحاولات المجانية</h3>
-  <p id="payText">اشترك عشان تكمل تصحيح بدون حد</p>
-  <p id="price">الاشتراك: 100 جنيه / شهر</p>
-  <p>ابعت على أورانج كاش:</p>
-  <div class="number">01289590022</div>
-  <p id="note">بعد التحويل ابعت سكرين التحويل على واتساب وهيتم تفعيلك خلال 5 دقايق</p>
-  <button onclick="window.open('https://wa.me/201289590022?text=أنا عايز أشترك في Mosahh')" id="whatsappBtn">أبعت على واتساب</button>
-  <button onclick="checkActivation()" id="checkBtn">أنا دفعت، فعّلني</button>
-</div>
-
 <script>
-// نظام اللغة
 const langData = {
-  ar: {
-    title:"مصحح الإجابات", templateLabel:"قوالب جاهزة:", keyLabel:"مفتاح الإجابة:", 
-    ansLabel:"إجابات الطلاب:", btn:"صحح", payTitle:"خلصت المحاولات المجانية", 
-    payText:"اشترك عشان تكمل تصحيح بدون حد", price:"الاشتراك: 100 جنيه / شهر",
-    note:"بعد التحويل ابعت سكرين التحويل على واتساب وهيتم تفعيلك خلال 5 دقايق",
-    whatsappBtn:"أبعت على واتساب", checkBtn:"أنا دفعت، فعّلني"
-  },
-  en: {
-    title:"Answer Grader", templateLabel:"Templates:", keyLabel:"Answer Key:", 
-    ansLabel:"Student Answers:", btn:"Grade", payTitle:"Free trials used up", 
-    payText:"Subscribe to continue grading", price:"Subscription: $5 / month",
-    note:"After payment send screenshot on WhatsApp and you'll be activated in 5 min",
-    whatsappBtn:"Message on WhatsApp", checkBtn:"I paid, activate me"
-  }
+  ar: {title:"مصحح الإجابات", keyLabel:"مفتاح الإجابة:", ansLabel:"إجابات الطلاب:", btn:"صحح", placeholderKey:"A,B,C,D,A,B", placeholderAns:"أحمد:A,B,C,D,A,B\nمحمد:A,A,C,D,B"},
+  en: {title:"Answer Grader", keyLabel:"Answer Key:", ansLabel:"Student Answers:", btn:"Grade", placeholderKey:"A,B,C,D,A,B", placeholderAns:"Ahmed:A,B,C,D,A,B\nMohamed:A,A,C,D,B"}
 }
 
 function setLang(lang){
   localStorage.setItem('lang', lang);
   document.documentElement.dir = lang==='ar'?'rtl':'ltr';
   document.documentElement.lang = lang;
-  const d = langData;
-  for(let key in d) {
-    let el = document.getElementById(key);
-    if(el) el.textContent = d[key];
-  }
-}
-window.onload = ()=> setLang(localStorage.getItem('lang')||'ar');
-
-// نظام القوالب
-function loadTemplate(val){
-  if(val) document.getElementById('answerKey').value = val;
-}
-
-// نظام الاشتراك
-let freeUses = parseInt(localStorage.getItem('freeUses')||'0');
-const MAX_FREE = 5;
-const isSubscribed = localStorage.getItem('subscribed')==='true';
-
-function checkAccess(){
-  if(isSubscribed) return true;
-  if(freeUses >= MAX_FREE){
-    document.getElementById('app').style.display='none';
-    document.getElementById('paywall').style.display='block';
-    return false;
-  }
-  return true;
+  const d = langData[lang];
+  document.getElementById('title').textContent = d.title;
+  document.getElementById('keyLabel').textContent = d.keyLabel;
+  document.getElementById('ansLabel').textContent = d.ansLabel;
+  document.getElementById('btn').textContent = d.btn;
+  document.getElementById('answerKey').placeholder = d.placeholderKey;
+  document.getElementById('studentAnswers').placeholder = d.placeholderAns;
 }
 
 function correct(){
-  if(!checkAccess()) return;
-  
   const key = document.getElementById('answerKey').value.split(',').map(s=>s.trim()).filter(s=>s);
-  const students = document.getElementById('studentAnswers').value.split('\n');
-  let html = '<h3>النتيجة:</h3>';
-  
+  const students = document.getElementById('studentAnswers').value.split('\n').filter(s=>s.trim());
+
+  if(key.length === 0){
+    alert(langData[localStorage.getItem('lang')||'ar'].title === 'مصحح الإجابات'? 'اكتب مفتاح الإجابة الأول' : 'Enter answer key first');
+    return;
+  }
+
+  let html = '<h3>' + (langData[localStorage.getItem('lang')||'ar'].title === 'مصحح الإجابات'? 'النتيجة:' : 'Results:') + '</h3>';
+
   students.forEach(line=>{
-    if(!line.trim()) return;
     const parts = line.split(':');
-    const name = parts || 'طالب';
-    const answers = parts.slice(1).join(':').split(',').map(s=>s.trim());
+    const name = parts[0] || 'Student';
+    const answers = parts[1]? parts[1].split(',').map(s=>s.trim()) : [];
     let score = 0;
-    answers.forEach((a,i)=>{if(a===key) score++});
+
+    answers.forEach((a,i)=>{if(a === key[i]) score++});
+
     html += `<p><b>${name}:</b> ${score}/${key.length}</p>`;
   });
-  
-  html += `<button onclick="shareResult()">مشاركة النتيجة</button>`;
+
   document.getElementById('result').innerHTML = html;
-  
-  if(!isSubscribed){
-    freeUses++;
-    localStorage.setItem('freeUses', freeUses);
-  }
 }
 
-// المشاركة
-function shareResult(){
-  const resultDiv = document.getElementById('result');
-  alert('خد سكرين للنتيجة وابعته على واتساب');
-}
-
-// تفعيل يدوي بعد الدفع
-function checkActivation(){
-  const code = prompt('اكتب كود التفعيل اللي بعتهولك على واتساب:');
-  if(code === 'MOSAHH2026'){
-    localStorage.setItem('subscribed','true');
-    alert('تم التفعيل بنجاح!');
-    location.reload();
-  }else{
-    alert('الكود غلط. اتأكد وبعته على واتساب');
-  }
-}
+window.onload = ()=> setLang(localStorage.getItem('lang')||'ar');
 </script>
 </body>
 </html>
