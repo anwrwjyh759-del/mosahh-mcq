@@ -10,6 +10,7 @@ body{font-family:sans-serif;padding:20px;max-width:700px;margin:auto;background:
 input,textarea,select,button{width:100%;padding:12px;margin:6px 0;border-radius:8px;border:1px solid #ddd;box-sizing:border-box;font-size:15px}
 button{background:#000;color:#fff;border:none;cursor:pointer;font-weight:bold}
 button:hover{opacity:0.85}
+.btn-secondary{background:#555}
 #result{background:#fff;padding:20px;border-radius:10px;margin-top:15px;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
 .student{border-bottom:1px solid #eee;padding:12px 0}
 .student:last-child{border:none}
@@ -17,6 +18,7 @@ button:hover{opacity:0.85}
 .correct{color:#388e3c}
 #paywall{display:none;text-align:center;padding:30px;border:2px dashed #ddd;border-radius:12px;margin-top:20px;background:#fff}
 .number{background:#f5f5f5;padding:12px;border-radius:8px;font-weight:bold;font-size:18px;letter-spacing:1px}
+#exportBtn{display:none}
 </style>
 </head>
 <body>
@@ -43,6 +45,7 @@ button:hover{opacity:0.85}
   <textarea id="studentAnswers" placeholder="احمد:A,C,A,D,C&#10;محمد:A,E,A,D,A" rows="6"></textarea>
 
   <button id="btn" onclick="correct()">صحح</button>
+  <button id="exportBtn" class="btn-secondary" onclick="exportCSV()">تصدير Excel</button>
   <div id="result"></div>
 </div>
 
@@ -58,12 +61,11 @@ button:hover{opacity:0.85}
 </div>
 
 <script>
-// Service Worker للأوفلاين
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
     const swCode = `
       self.addEventListener('install', e=>{
-        e.waitUntil(caches.open('mosahh-v2').then(cache=>cache.addAll(['./'])));
+        e.waitUntil(caches.open('mosahh-v3').then(cache=>cache.addAll(['./'])));
       });
       self.addEventListener('fetch', e=>{
         e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));
@@ -75,38 +77,34 @@ if('serviceWorker' in navigator){
 }
 
 const langData = {
-  ar:{title:"مصحح الإجابات",keyLabel:"مفتاح الإجابة:",ansLabel:"إجابات الطلاب:",btn:"صحح",payTitle:"خلصت المحاولات المجانية",payText:"اشترك عشان تكمل تصحيح بدون حد",result:"النتيجة:",wrong:"غلط في:",score:"الدرجة"},
-  en:{title:"Answer Grader",keyLabel:"Answer Key:",ansLabel:"Student Answers:",btn:"Grade",payTitle:"Free trials used up",payText:"Subscribe to continue grading",result:"Results:",wrong:"Wrong in:",score:"Score"}
+  ar:{title:"مصحح الإجابات",keyLabel:"مفتاح الإجابة:",ansLabel:"إجابات الطلاب:",btn:"صحح",export:"تصدير Excel",payTitle:"خلصت المحاولات المجانية",payText:"اشترك عشان تكمل تصحيح بدون حد",result:"النتيجة:",wrong:"غلط في:",score:"الدرجة",name:"الاسم"},
+  en:{title:"Answer Grader",keyLabel:"Answer Key:",ansLabel:"Student Answers:",btn:"Grade",export:"Export Excel",payTitle:"Free trials used up",payText:"Subscribe to continue grading",result:"Results:",wrong:"Wrong in:",score:"Score",name:"Name"}
 }
 
 let freeUses = parseInt(localStorage.getItem('freeUses')||'0');
 const MAX_FREE = 5;
 const isSubscribed = localStorage.getItem('subscribed')==='true';
+let lastResults = [];
 
 function setLang(lang){
   localStorage.setItem('lang', lang);
   document.documentElement.dir = lang==='ar'?'rtl':'ltr';
   document.documentElement.lang = lang;
-  const d = langData[lang];
+  const d = langData;
   document.getElementById('title').textContent = d.title;
   document.getElementById('keyLabel').textContent = d.keyLabel;
   document.getElementById('ansLabel').textContent = d.ansLabel;
   document.getElementById('btn').textContent = d.btn;
+  document.getElementById('exportBtn').textContent = d.export;
   document.getElementById('payTitle').textContent = d.payTitle;
   document.getElementById('payText').textContent = d.payText;
 }
 
 function loadTemplate(){
   const t = document.getElementById('template').value;
-  if(t==='mcq4'){
-    document.getElementById('answerKey').value = 'A,B,C,D,A,B,C,D,A,B,C,D,A,B,C,D,A,B,C,D';
-  }
-  if(t==='tf'){
-    document.getElementById('answerKey').value = 'T,F,T,F,T,F,T,F,T,F';
-  }
-  if(t==='mcq5'){
-    document.getElementById('answerKey').value = 'A,B,C,D,E,A,B,C,D,E,A,B,C,D,E';
-  }
+  if(t==='mcq4') document.getElementById('answerKey').value = 'A,B,C,D,A,B,C,D,A,B,C,D,A,B,C,D,A,B,C,D';
+  if(t==='tf') document.getElementById('answerKey').value = 'T,F,T,F,T,F,T,F,T,F';
+  if(t==='mcq5') document.getElementById('answerKey').value = 'A,B,C,D,E,A,B,C,D,E,A,B,C,D,E';
 }
 
 function checkAccess(){
@@ -123,9 +121,10 @@ function correct(){
   if(!checkAccess()) return;
 
   const lang = localStorage.getItem('lang')||'ar';
-  const d = langData[lang];
+  const d = langData;
   const key = document.getElementById('answerKey').value.split(',').map(s=>s.trim()).filter(s=>s);
   const students = document.getElementById('studentAnswers').value.split('\n').filter(s=>s.trim());
+  lastResults = [];
 
   if(key.length === 0){
     alert(lang==='ar'? 'اكتب مفتاح الإجابة الأول' : 'Enter answer key first');
@@ -144,32 +143,42 @@ function correct(){
     let wrongQs = [];
 
     for(let i = 0; i < key.length; i++){
-      if(answers[i] && answers[i] === key[i]) {
-        score++;
-      } else {
-        wrongQs.push(i+1);
-      }
+      if(answers[i] && answers[i] === key[i]) score++;
+      else wrongQs.push(i+1);
     }
+
+    lastResults.push({name, score, total:key.length, wrong:wrongQs.join(', ')});
 
     html += `<div class="student">
       <strong>${name}</strong><br>
       <span class="correct">${d.score}: ${score}/${key.length}</span><br>`;
-
-    if(wrongQs.length > 0){
-      html += `<span class="wrong">${d.wrong} ${wrongQs.join(', ')}</span>`;
-    } else {
-      html += `<span class="correct">${lang==='ar'?'ممتاز! كله صح':'Perfect! All correct'}</span>`;
-    }
-
+    html += wrongQs.length > 0? `<span class="wrong">${d.wrong} ${wrongQs.join(', ')}</span>` : `<span class="correct">${lang==='ar'?'ممتاز! كله صح':'Perfect! All correct'}</span>`;
     html += `</div>`;
   });
 
   document.getElementById('result').innerHTML = html;
+  document.getElementById('exportBtn').style.display = 'block';
 
   if(!isSubscribed){
     freeUses++;
     localStorage.setItem('freeUses', freeUses);
   }
+}
+
+function exportCSV(){
+  const lang = localStorage.getItem('lang')||'ar';
+  const d = langData;
+  let csv = `${d.name},${d.score},${d.wrong}\n`;
+
+  lastResults.forEach(r=>{
+    csv += `"${r.name}",${r.score}/${r.total},"${r.wrong}"\n`;
+  });
+
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'mosahh_results.csv';
+  link.click();
 }
 
 function checkActivation(){
